@@ -16,8 +16,8 @@ import {
   Uint16BufferAttribute,
   Vector3,
 } from "three";
-import { degToRad } from "three/src/math/MathUtils.js";
-import { pageAtom, pages } from "./UI";
+import { pages, texturePaths } from "../bookPages";
+import { pageAtom } from "../pageState";
 
 const easingFactor = 0.5; // Controls the speed of the easing
 const easingFactorFold = 0.3; // Controls the speed of the easing
@@ -36,7 +36,7 @@ const pageGeometry = new BoxGeometry(
   PAGE_HEIGHT,
   PAGE_DEPTH,
   PAGE_SEGMENTS,
-  2
+  2,
 );
 
 pageGeometry.translate(PAGE_WIDTH / 2, 0, 0);
@@ -60,11 +60,11 @@ for (let i = 0; i < position.count; i++) {
 
 pageGeometry.setAttribute(
   "skinIndex",
-  new Uint16BufferAttribute(skinIndexes, 4)
+  new Uint16BufferAttribute(skinIndexes, 4),
 );
 pageGeometry.setAttribute(
   "skinWeight",
-  new Float32BufferAttribute(skinWeights, 4)
+  new Float32BufferAttribute(skinWeights, 4),
 );
 
 const whiteColor = new Color("white");
@@ -85,31 +85,47 @@ const pageMaterials = [
   }),
 ];
 
-pages.forEach((page) => {
-  useTexture.preload(`/textures/${page.front}.jpg`);
-  useTexture.preload(`/textures/${page.back}.jpg`);
-  useTexture.preload(`/textures/book-cover-roughness.jpg`);
-});
+const preloadBookTextures = () => {
+  texturePaths.forEach((texturePath) => {
+    useTexture.preload(texturePath);
+  });
+};
 
 const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
+  const isFrontCover = number === 0;
+  const isBackCover = number === pages.length - 1;
   const [picture, picture2, pictureRoughness] = useTexture([
     `/textures/${front}.jpg`,
     `/textures/${back}.jpg`,
-    ...(number === 0 || number === pages.length - 1
+    ...(isFrontCover || isBackCover
       ? [`/textures/book-cover-roughness.jpg`]
       : []),
   ]);
-  picture.colorSpace = picture2.colorSpace = SRGBColorSpace;
+  const frontTexture = useMemo(() => {
+    const texture = picture.clone();
+    texture.colorSpace = SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  }, [picture]);
+  const backTexture = useMemo(() => {
+    const texture = picture2.clone();
+    texture.colorSpace = SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  }, [picture2]);
   const group = useRef();
   const turnedAt = useRef(0);
   const lastOpened = useRef(opened);
 
   const skinnedMeshRef = useRef();
+  const [, setPage] = useAtom(pageAtom);
+  const [highlighted, setHighlighted] = useState(false);
+  useCursor(highlighted);
 
   const manualSkinnedMesh = useMemo(() => {
     const bones = [];
     for (let i = 0; i <= PAGE_SEGMENTS; i++) {
-      let bone = new Bone();
+      const bone = new Bone();
       bones.push(bone);
       if (i === 0) {
         bone.position.x = 0;
@@ -126,8 +142,8 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       ...pageMaterials,
       new MeshStandardMaterial({
         color: whiteColor,
-        map: picture,
-        ...(number === 0
+        map: frontTexture,
+        ...(isFrontCover
           ? {
               roughnessMap: pictureRoughness,
             }
@@ -139,8 +155,8 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       }),
       new MeshStandardMaterial({
         color: whiteColor,
-        map: picture2,
-        ...(number === pages.length - 1
+        map: backTexture,
+        ...(isBackCover
           ? {
               roughnessMap: pictureRoughness,
             }
@@ -158,7 +174,17 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
     mesh.add(skeleton.bones[0]);
     mesh.bind(skeleton);
     return mesh;
-  }, []);
+  }, [backTexture, frontTexture, isBackCover, isFrontCover, pictureRoughness]);
+
+  useEffect(() => {
+    return () => {
+      manualSkinnedMesh.material.slice(4).forEach((material) => {
+        material.dispose();
+      });
+      frontTexture.dispose();
+      backTexture.dispose();
+    };
+  }, [backTexture, frontTexture, manualSkinnedMesh]);
 
   // useHelper(skinnedMeshRef, SkeletonHelper, "red");
 
@@ -172,7 +198,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       skinnedMeshRef.current.material[5].emissiveIntensity = MathUtils.lerp(
         skinnedMeshRef.current.material[4].emissiveIntensity,
         emissiveIntensity,
-        0.1
+        0.1,
       );
 
     if (lastOpened.current !== opened) {
@@ -184,7 +210,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
 
     let targetRotation = opened ? -Math.PI / 2 : Math.PI / 2;
     if (!bookClosed) {
-      targetRotation += degToRad(number * 0.8);
+      targetRotation += MathUtils.degToRad(number * 0.8);
     }
 
     const bones = skinnedMeshRef.current.skeleton.bones;
@@ -199,7 +225,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
         insideCurveStrength * insideCurveIntensity * targetRotation -
         outsideCurveStrength * outsideCurveIntensity * targetRotation +
         turningCurveStrength * turningIntensity * targetRotation;
-      let foldRotationAngle = degToRad(Math.sign(targetRotation) * 2);
+      let foldRotationAngle = MathUtils.degToRad(Math.sign(targetRotation) * 2);
       if (bookClosed) {
         if (i === 0) {
           rotationAngle = targetRotation;
@@ -214,7 +240,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
         "y",
         rotationAngle,
         easingFactor,
-        delta
+        delta,
       );
 
       const foldIntensity =
@@ -226,14 +252,10 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
         "x",
         foldRotationAngle * foldIntensity,
         easingFactorFold,
-        delta
+        delta,
       );
     }
   });
-
-  const [_, setPage] = useAtom(pageAtom);
-  const [highlighted, setHighlighted] = useState(false);
-  useCursor(highlighted);
 
   return (
     <group
@@ -267,6 +289,10 @@ export const Book = ({ ...props }) => {
   const [delayedPage, setDelayedPage] = useState(page);
 
   useEffect(() => {
+    preloadBookTextures();
+  }, []);
+
+  useEffect(() => {
     let timeout;
     const goToPage = () => {
       setDelayedPage((delayedPage) => {
@@ -277,7 +303,7 @@ export const Book = ({ ...props }) => {
             () => {
               goToPage();
             },
-            Math.abs(page - delayedPage) > 2 ? 50 : 150
+            Math.abs(page - delayedPage) > 2 ? 50 : 150,
           );
           if (page > delayedPage) {
             return delayedPage + 1;

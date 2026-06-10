@@ -1,7 +1,37 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@100..900&display=swap");
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", sans-serif;
+  --text-8xl: 6rem;
+  --text-9xl: 8rem;
+  --text-10xl: 10rem;
+  --text-11xl: 11rem;
+  --text-12xl: 12rem;
+  --text-13xl: 13rem;
+  --animate-horizontal-scroll: horizontal-scroll 16s linear infinite;
+  --animate-horizontal-scroll-2: horizontal-scroll-2 16s linear infinite;
+}
+
+@keyframes horizontal-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes horizontal-scroll-2 {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
 
 #root {
   width: 100vw;
