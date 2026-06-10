@@ -17,7 +17,7 @@ import {
   Vector3,
 } from "three";
 import { pages, texturePaths } from "../bookPages";
-import { pageAtom } from "../pageState";
+import { isPageTurningAtom, pageAtom } from "../pageState";
 
 const easingFactor = 0.5; // Controls the speed of the easing
 const easingFactorFold = 0.3; // Controls the speed of the easing
@@ -91,15 +91,19 @@ const preloadBookTextures = () => {
   });
 };
 
-const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
-  const isFrontCover = number === 0;
-  const isBackCover = number === pages.length - 1;
-  const [picture, picture2, pictureRoughness] = useTexture([
+const Page = ({
+  number,
+  front,
+  back,
+  page,
+  opened,
+  bookClosed,
+  disabled,
+  ...props
+}) => {
+  const [picture, picture2] = useTexture([
     `/textures/${front}.jpg`,
     `/textures/${back}.jpg`,
-    ...(isFrontCover || isBackCover
-      ? [`/textures/book-cover-roughness.jpg`]
-      : []),
   ]);
   const frontTexture = useMemo(() => {
     const texture = picture.clone();
@@ -120,7 +124,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
   const skinnedMeshRef = useRef();
   const [, setPage] = useAtom(pageAtom);
   const [highlighted, setHighlighted] = useState(false);
-  useCursor(highlighted);
+  useCursor(highlighted && !disabled);
 
   const manualSkinnedMesh = useMemo(() => {
     const bones = [];
@@ -143,26 +147,14 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       new MeshStandardMaterial({
         color: whiteColor,
         map: frontTexture,
-        ...(isFrontCover
-          ? {
-              roughnessMap: pictureRoughness,
-            }
-          : {
-              roughness: 0.1,
-            }),
+        roughness: 0.1,
         emissive: emissiveColor,
         emissiveIntensity: 0,
       }),
       new MeshStandardMaterial({
         color: whiteColor,
         map: backTexture,
-        ...(isBackCover
-          ? {
-              roughnessMap: pictureRoughness,
-            }
-          : {
-              roughness: 0.1,
-            }),
+        roughness: 0.1,
         emissive: emissiveColor,
         emissiveIntensity: 0,
       }),
@@ -174,7 +166,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
     mesh.add(skeleton.bones[0]);
     mesh.bind(skeleton);
     return mesh;
-  }, [backTexture, frontTexture, isBackCover, isFrontCover, pictureRoughness]);
+  }, [backTexture, frontTexture]);
 
   useEffect(() => {
     return () => {
@@ -263,6 +255,9 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       ref={group}
       onPointerEnter={(e) => {
         e.stopPropagation();
+        if (disabled) {
+          return;
+        }
         setHighlighted(true);
       }}
       onPointerLeave={(e) => {
@@ -271,6 +266,9 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
       }}
       onClick={(e) => {
         e.stopPropagation();
+        if (disabled) {
+          return;
+        }
         setPage(opened ? number : number + 1);
         setHighlighted(false);
       }}
@@ -286,6 +284,7 @@ const Page = ({ number, front, back, page, opened, bookClosed, ...props }) => {
 
 export const Book = ({ ...props }) => {
   const [page] = useAtom(pageAtom);
+  const [, setIsPageTurning] = useAtom(isPageTurningAtom);
   const [delayedPage, setDelayedPage] = useState(page);
 
   useEffect(() => {
@@ -297,8 +296,10 @@ export const Book = ({ ...props }) => {
     const goToPage = () => {
       setDelayedPage((delayedPage) => {
         if (page === delayedPage) {
+          setIsPageTurning(false);
           return delayedPage;
         } else {
+          setIsPageTurning(true);
           timeout = setTimeout(
             () => {
               goToPage();
@@ -318,7 +319,9 @@ export const Book = ({ ...props }) => {
     return () => {
       clearTimeout(timeout);
     };
-  }, [page]);
+  }, [page, setIsPageTurning]);
+
+  const isPageTurnLocked = delayedPage !== page;
 
   return (
     <group {...props} rotation-y={-Math.PI / 2}>
@@ -329,6 +332,7 @@ export const Book = ({ ...props }) => {
           number={index}
           opened={delayedPage > index}
           bookClosed={delayedPage === 0 || delayedPage === pages.length}
+          disabled={isPageTurnLocked}
           {...pageData}
         />
       ))}

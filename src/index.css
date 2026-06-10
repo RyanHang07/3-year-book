@@ -11,6 +11,7 @@
   --text-13xl: 13rem;
   --animate-horizontal-scroll: horizontal-scroll 16s linear infinite;
   --animate-horizontal-scroll-2: horizontal-scroll-2 16s linear infinite;
+  --animate-tooltip-float: tooltip-float 1.8s ease-in-out infinite;
 }
 
 @keyframes horizontal-scroll {
@@ -33,10 +34,21 @@
   }
 }
 
+@keyframes tooltip-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(0.25rem);
+  }
+}
+
 #root {
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(#5a47ce, #232323 80%);
+  background: radial-gradient(#bdeeff, #6fb7d8 80%);
 }
 
 body {
