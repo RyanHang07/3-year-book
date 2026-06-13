@@ -1,9 +1,16 @@
 import { useEffect } from "react";
 import { bookDescriptions } from "../bookDescriptions";
 
-const getMemoryDescription = (memory) =>
-  bookDescriptions[memory.image] ??
-  `A full-size look at the ${memory.side.toLowerCase()} page memory from ${memory.label}.`;
+const getMemoryDetails = (memory) => {
+  const details = bookDescriptions[memory.image];
+
+  return {
+    title: details?.title ?? memory.label,
+    letter:
+      details?.letter ??
+      `A full-size look at the ${memory.side.toLowerCase()} page memory from ${memory.label}.`,
+  };
+};
 
 export const MemoryModal = ({ memory, onClose }) => {
   useEffect(() => {
@@ -23,6 +30,8 @@ export const MemoryModal = ({ memory, onClose }) => {
   if (!memory) {
     return null;
   }
+
+  const memoryDetails = getMemoryDetails(memory);
 
   return (
     <div
@@ -49,7 +58,7 @@ export const MemoryModal = ({ memory, onClose }) => {
                   {memory.side} page
                 </p>
                 <h2 id="memory-modal-title" className="text-3xl font-black">
-                  {memory.label}
+                  {memoryDetails.title}
                 </h2>
               </div>
               <button
@@ -63,10 +72,10 @@ export const MemoryModal = ({ memory, onClose }) => {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">
-                Description
+                Letter
               </p>
-              <p className="mt-3 text-base leading-7 text-white/75">
-                {getMemoryDescription(memory)}
+              <p className="mt-3 whitespace-pre-line text-base leading-7 text-white/75">
+                {memoryDetails.letter}
               </p>
             </div>
             <dl className="grid grid-cols-2 gap-3 border-t border-white/10 pt-4 text-sm">

@@ -51,7 +51,7 @@ const LoadingOverlay = ({ isSceneReady }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(#5a47ce,#171717_80%)] transition-opacity duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(#bdeeff,#6fb7d8_80%)] transition-opacity duration-300"
       role="status"
       aria-live="polite"
       aria-label={`${statusText} ${displayedProgress}%`}

@@ -1,8 +1,11 @@
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { bookDescriptions } from "../bookDescriptions";
 import { pages } from "../bookPages";
 import { isPageTurningAtom, pageAtom } from "../pageState";
 import { MemoryModal } from "./MemoryModal";
+
+const DEFAULT_DOCUMENT_TITLE = "Happy 3 Years Baby!";
 
 const marqueeItems = [
   "Happy Three Years Baby",
@@ -198,6 +201,16 @@ export const UI = () => {
     audio.volume = 0.5;
     audio.play().catch(() => undefined);
   }, [page]);
+
+  useEffect(() => {
+    document.title = selectedMemory
+      ? (bookDescriptions[selectedMemory.image]?.title ?? selectedMemory.label)
+      : DEFAULT_DOCUMENT_TITLE;
+
+    return () => {
+      document.title = DEFAULT_DOCUMENT_TITLE;
+    };
+  }, [selectedMemory]);
 
   return (
     <>
